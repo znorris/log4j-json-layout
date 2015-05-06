@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.szhem.logstash.log4j;
+package org.jetbrains.appenders;
 
 import org.apache.log4j.Appender;
 import org.apache.log4j.Category;
@@ -40,7 +40,7 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.regex.Pattern;
 
-public class LogStashJsonLayout extends Layout {
+public class JsonLayout extends Layout {
 
     private static final Pattern SEP_PATTERN = Pattern.compile("(?:\\p{Space}*?[,;]\\p{Space}*)+");
     private static final Pattern PAIR_SEP_PATTERN = Pattern.compile("(?:\\p{Space}*?[:=]\\p{Space}*)+");
@@ -124,7 +124,7 @@ public class LogStashJsonLayout extends Layout {
     private String hostName;
     private boolean ignoresThrowable;
 
-    public LogStashJsonLayout() {
+    public JsonLayout() {
         fields = new HashMap<String, String>();
 
         renderedFields = EnumSet.allOf(Field.class);

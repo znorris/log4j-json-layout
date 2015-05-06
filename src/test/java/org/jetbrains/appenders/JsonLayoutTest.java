@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.szhem.logstash.log4j;
+package org.jetbrains.appenders;
 
 import com.jayway.jsonassert.JsonAsserter;
 import org.apache.log4j.ConsoleAppender;
@@ -39,20 +39,20 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.spy;
 
-public class LogStashJsonLayoutTest {
+public class JsonLayoutTest {
 
     @Rule
     public TestName testName = new TestName();
 
     private StringWriter consoleWriter;
-    private LogStashJsonLayout consoleLayout;
+    private JsonLayout consoleLayout;
     private Logger logger;
 
     @Before
     public void setUp() throws Exception {
         consoleWriter = new StringWriter();
 
-        consoleLayout = new LogStashJsonLayout();
+        consoleLayout = new JsonLayout();
         consoleLayout.activateOptions();
 
         ConsoleAppender consoleAppender = spy(new ConsoleAppender());
@@ -198,7 +198,7 @@ public class LogStashJsonLayoutTest {
         // for the file appender there must be log file path in the json
         StringWriter fileWriter = new StringWriter();
 
-        LogStashJsonLayout fileLayout = new LogStashJsonLayout();
+        JsonLayout fileLayout = new JsonLayout();
         fileLayout.activateOptions();
 
         FileAppender fileAppender = spy(new FileAppender());
@@ -223,7 +223,7 @@ public class LogStashJsonLayoutTest {
         // for the file appender there must be log file path in the json
         StringWriter fileWriter = new StringWriter();
 
-        LogStashJsonLayout fileLayout = new LogStashJsonLayout();
+        JsonLayout fileLayout = new JsonLayout();
         fileLayout.activateOptions();
 
         FileAppender fileAppender = spy(new FileAppender());
@@ -250,7 +250,7 @@ public class LogStashJsonLayoutTest {
         // for the file appender there must be log file path in the json
         StringWriter fileWriter = new StringWriter();
 
-        LogStashJsonLayout fileLayout = new LogStashJsonLayout();
+        JsonLayout fileLayout = new JsonLayout();
         fileLayout.activateOptions();
 
         FileAppender fileAppender = spy(new FileAppender());
