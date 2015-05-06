@@ -14,7 +14,12 @@
 package com.github.szhem.logstash.log4j;
 
 import com.jayway.jsonassert.JsonAsserter;
-import org.apache.log4j.*;
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.FileAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.MDC;
+import org.apache.log4j.NDC;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -25,6 +30,12 @@ import java.net.InetAddress;
 
 import static com.jayway.jsonassert.JsonAssert.with;
 import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.spy;
 
@@ -90,11 +101,11 @@ public class LogStashJsonLayoutTest {
             .assertThat("$.mdc.mdc_key_4", equalTo("4.1"))
 */
             .assertThat("$.message", equalTo("Hello World"))
-            .assertThat("$.ndc", equalTo("ndc_1 ndc_2 ndc_3"))
-            .assertThat("$.path", nullValue())
+                .assertThat("$.ndc", equalTo("ndc_1 ndc_2 ndc_3"))
+                .assertThat("$.path", nullValue())
             .assertThat("$.host", equalTo(InetAddress.getLocalHost().getHostName()))
-            .assertThat("$.tags", nullValue())
-            .assertThat("$.thread", equalTo(Thread.currentThread().getName()))
+                .assertThat("$.tags", nullValue())
+                .assertThat("$.thread", equalTo(Thread.currentThread().getName()))
             .assertThat("$.@timestamp", notNullValue())
             .assertThat("$.@version", equalTo("1"));
     }
@@ -111,6 +122,20 @@ public class LogStashJsonLayoutTest {
             .assertThat("$.location.file", equalTo(getClass().getSimpleName() + ".java"))
             .assertThat("$.location.method", equalTo(testName.getMethodName()))
             .assertThat("$.location.line", notNullValue());
+    }
+
+    @Test
+    public void testJSONIsValid() throws Exception {
+        final StringBuilder message = new StringBuilder("Hello World: ");
+        for(int c = Character.MIN_VALUE; c <= Character.MAX_VALUE; c++) {
+            message.append((char)c);
+        }
+
+        consoleLayout.activateOptions();
+        logger.info(message.toString());
+
+        with(consoleWriter.toString())
+                .assertThat("$.message", startsWith("Hello World: "));
     }
 
     @Test
