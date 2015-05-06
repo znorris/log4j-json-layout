@@ -134,7 +134,7 @@ public class LogStashJsonLayout extends Layout {
         dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
 
         date = new Date();
-        buf = new StringBuilder(1024);
+        buf = new StringBuilder(32*1024);
     }
 
     @Override
