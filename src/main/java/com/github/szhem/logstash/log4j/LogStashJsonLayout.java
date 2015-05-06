@@ -30,6 +30,7 @@ import java.net.UnknownHostException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.EnumSet;
 import java.util.Enumeration;
@@ -228,7 +229,7 @@ public class LogStashJsonLayout extends Layout {
             if (hasPrevField) {
                 buf.append(',');
             }
-            date.setTime(event.getTimeStamp());
+            date.setTime(event.timeStamp);
             appendField(buf, Field.TIMESTAMP.val, dateFormat.format(date));
             hasPrevField = true;
         }
@@ -273,7 +274,7 @@ public class LogStashJsonLayout extends Layout {
     private boolean appendSourcePath(StringBuilder buf, LoggingEvent event) {
         if (!pathResolved) {
             @SuppressWarnings("unchecked")
-            Appender appender = findLayoutAppender(event.getLogger());
+            Appender appender = findLayoutAppender((Category)null);
             if (appender instanceof FileAppender) {
                 FileAppender fileAppender = (FileAppender) appender;
                 path = getAppenderPath(fileAppender);
@@ -352,7 +353,7 @@ public class LogStashJsonLayout extends Layout {
     }
 
     private boolean appendMDC(StringBuilder buf, LoggingEvent event) {
-        Map<?, ?> entries = event.getProperties();
+        Map<?, ?> entries = Collections.emptyMap(); ///MDC is not supported in log4j 1.2.12
         if (entries.isEmpty()) {
             return false;
         }
