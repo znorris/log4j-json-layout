@@ -48,7 +48,7 @@ public class LogStashJsonLayout extends Layout {
     private static final char[] HEX_CHARS =
         {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
-    private static enum LocationField {
+    private enum LocationField {
         CLASS("class"),
         FILE("file"),
         LINE("line"),
@@ -56,24 +56,24 @@ public class LogStashJsonLayout extends Layout {
 
         private final String val;
 
-        private LocationField(String val) {
+        LocationField(String val) {
             this.val = val;
         }
     }
 
-    private static enum ExceptionField {
+    private enum ExceptionField {
         CLASS("class"),
         MESSAGE("message"),
         STACKTRACE("stacktrace");
 
         private final String val;
 
-        private ExceptionField(String val) {
+        ExceptionField(String val) {
             this.val = val;
         }
     }
 
-    private static enum Field {
+    private enum Field {
         EXCEPTION("exception"),
         LEVEL("level"),
         LOCATION("location"),
@@ -90,7 +90,7 @@ public class LogStashJsonLayout extends Layout {
 
         private final String val;
 
-        private Field(String exception) {
+        Field(String exception) {
             val = exception;
         }
 
@@ -476,7 +476,6 @@ public class LogStashJsonLayout extends Layout {
         return ignoresThrowable;
     }
 
-    @Override
     public void activateOptions() {
         if (includedFields != null) {
             String[] included = SEP_PATTERN.split(includedFields);
@@ -567,8 +566,7 @@ public class LogStashJsonLayout extends Layout {
                 out.append("\\t");
                 break;
             default:
-                if (('\u0000' <= ch && ch <= '\u001F') || ('\u007F' <= ch && ch <= '\u009F')
-                    || ('\u2000' <= ch && ch <= '\u20FF')) {
+                if ((ch <= '\u001F') || ('\u007F' <= ch && ch <= '\u009F') || ('\u2000' <= ch && ch <= '\u20FF')) {
                     out.append("\\u")
                         .append(HEX_CHARS[ch >> 12 & 0x000F])
                         .append(HEX_CHARS[ch >> 8 & 0x000F])
