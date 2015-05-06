@@ -35,6 +35,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.spy;
 
@@ -119,6 +120,20 @@ public class LogStashJsonLayoutTest {
             .assertThat("$.location.file", equalTo(getClass().getSimpleName() + ".java"))
             .assertThat("$.location.method", equalTo(testName.getMethodName()))
             .assertThat("$.location.line", notNullValue());
+    }
+
+    @Test
+    public void testJSONIsValid() throws Exception {
+        final StringBuilder message = new StringBuilder("Hello World: ");
+        for(int c = Character.MIN_VALUE; c <= Character.MAX_VALUE; c++) {
+            message.append((char)c);
+        }
+
+        consoleLayout.activateOptions();
+        logger.info(message.toString());
+
+        with(consoleWriter.toString())
+                .assertThat("$.message", startsWith("Hello World: "));
     }
 
     @Test
