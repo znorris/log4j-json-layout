@@ -20,7 +20,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.github.szhem.logstash</groupId>
-    <artifactId>log4j-1-2.17-json-layout</artifactId>
+    <artifactId>log4j-1.2.17-json-layout</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 
     <properties>
