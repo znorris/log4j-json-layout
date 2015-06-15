@@ -52,6 +52,14 @@
         <developerConnection>scm:git:git@github.com:JetBrains/log4j-json-layout</developerConnection>
     </scm>
 
+    <distributionManagement>
+      <repository>
+        <id>repo.labs.intellij.net</id>
+        <name>repo.labs.intellij.net-releases</name>
+        <url>http://repo.labs.intellij.net/thirdparty</url>
+      </repository>
+    </distributionManagement>
+
     <dependencies>
         <dependency>
             <groupId>com.jayway.jsonpath</groupId>
