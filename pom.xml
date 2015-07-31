@@ -111,9 +111,6 @@
                     <include>LICENSE</include>
                 </includes>
             </resource>
-            <resource>
-                <directory>src/main/java</directory>
-            </resource>
         </resources>
         <plugins>
             <plugin>
