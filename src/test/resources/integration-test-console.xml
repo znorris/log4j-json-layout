@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <appender name="CONSOLE-ALL" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="org.jetbrains.appenders.JsonLayout">
+            <hostname>mega-host</hostname>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>WARN</level>
+        </filter>
+    </appender>
+
+    <root level="WARN">
+        <appender-ref ref="CONSOLE-ALL"/>
+    </root>
+
+</configuration>

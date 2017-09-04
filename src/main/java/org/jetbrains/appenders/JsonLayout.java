@@ -93,7 +93,7 @@ public class JsonLayout extends EncoderBase<ILoggingEvent> {
         }
     };
     private String[] tags;
-    private String hostName;
+    private String hostName = "unknown";
 
     public byte[] headerBytes() {
         return new byte[0];

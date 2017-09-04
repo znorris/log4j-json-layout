@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="ROLL" class="ch.qos.logback.core.FileAppender">
+        <file>${LOG_FILE}</file>
+        <append>false</append>
+        <encoder class="org.jetbrains.appenders.JsonLayout">
+            <hostName>mega-host</hostName>
+        </encoder>
+    </appender>
+
+
+    <root level="WARN">
+        <appender-ref ref="ROLL"/>
+    </root>
+
+</configuration>
