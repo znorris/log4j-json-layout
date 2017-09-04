@@ -21,7 +21,6 @@ import ch.qos.logback.core.encoder.EncoderBase;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.nio.charset.Charset;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -83,29 +82,18 @@ public class JsonLayout extends EncoderBase<ILoggingEvent> {
     private String includedFields;
     private String excludedFields;
 
-    private final Map<String, String> fields;
-    private final Set<Field> renderedFields;
-    private final DateFormat dateFormat;
-    private final Date date;
-    private final StringBuilder buf;
-    private final Charset charset;
-
+    private final Map<String, String> fields = new HashMap<String, String>();
+    private final Set<Field> renderedFields = EnumSet.allOf(Field.class);
+    private final ThreadLocal<DateFormat> dateFormat = new ThreadLocal<DateFormat>(){
+        @Override
+        protected DateFormat initialValue() {
+            final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+            dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+            return dateFormat;
+        }
+    };
     private String[] tags;
     private String hostName;
-
-    public JsonLayout() {
-        fields = new HashMap<String, String>();
-
-        renderedFields = EnumSet.allOf(Field.class);
-
-        dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-
-        date = new Date();
-        buf = new StringBuilder(32*1024);
-
-        charset = Charset.forName("utf-8");
-    }
 
     public byte[] headerBytes() {
         return new byte[0];
@@ -116,8 +104,7 @@ public class JsonLayout extends EncoderBase<ILoggingEvent> {
     }
 
     public byte[] encode(final ILoggingEvent event) {
-        buf.setLength(0);
-
+        final StringBuilder buf = new StringBuilder(32 * 1024);
         buf.append('{');
 
         boolean hasPrevField = false;
@@ -186,8 +173,7 @@ public class JsonLayout extends EncoderBase<ILoggingEvent> {
             if (hasPrevField) {
                 buf.append(',');
             }
-            date.setTime(event.getTimeStamp());
-            appendField(buf, Field.TIMESTAMP.val, dateFormat.format(date));
+            appendField(buf, Field.TIMESTAMP.val, dateFormat.get().format(new Date(event.getTimeStamp())));
             hasPrevField = true;
         }
 
