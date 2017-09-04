@@ -13,53 +13,27 @@
  */
 package org.jetbrains.appenders;
 
-import org.apache.log4j.Appender;
-import org.apache.log4j.Category;
-import org.apache.log4j.FileAppender;
-import org.apache.log4j.Layout;
-import org.apache.log4j.helpers.LogLog;
-import org.apache.log4j.spi.AppenderAttachable;
-import org.apache.log4j.spi.LocationInfo;
-import org.apache.log4j.spi.LoggingEvent;
-import org.apache.log4j.spi.ThrowableInformation;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.IThrowableProxy;
+import ch.qos.logback.classic.spi.StackTraceElementProxy;
+import ch.qos.logback.core.encoder.EncoderBase;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.charset.Charset;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.EnumSet;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-import java.util.TimeZone;
+import java.util.*;
 import java.util.regex.Pattern;
 
-public class JsonLayout extends Layout {
+public class JsonLayout extends EncoderBase<ILoggingEvent> {
 
     private static final Pattern SEP_PATTERN = Pattern.compile("(?:\\p{Space}*?[,;]\\p{Space}*)+");
     private static final Pattern PAIR_SEP_PATTERN = Pattern.compile("(?:\\p{Space}*?[:=]\\p{Space}*)+");
 
     private static final char[] HEX_CHARS =
         {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
-
-    private enum LocationField {
-        CLASS("class"),
-        FILE("file"),
-        LINE("line"),
-        METHOD("method");
-
-        private final String val;
-
-        LocationField(String val) {
-            this.val = val;
-        }
-    }
 
     private enum ExceptionField {
         CLASS("class"),
@@ -80,9 +54,7 @@ public class JsonLayout extends Layout {
         LOGGER("logger"),
         MESSAGE("message"),
         MDC("mdc"),
-        NDC("ndc"),
         HOST("host"),
-        PATH("path"),
         TAGS("tags"),
         TIMESTAMP("@timestamp"),
         THREAD("thread"),
@@ -117,12 +89,10 @@ public class JsonLayout extends Layout {
     private final DateFormat dateFormat;
     private final Date date;
     private final StringBuilder buf;
+    private final Charset charset;
 
     private String[] tags;
-    private String path;
-    private boolean pathResolved;
     private String hostName;
-    private boolean ignoresThrowable;
 
     public JsonLayout() {
         fields = new HashMap<String, String>();
@@ -135,10 +105,19 @@ public class JsonLayout extends Layout {
 
         date = new Date();
         buf = new StringBuilder(32*1024);
+
+        charset = Charset.forName("utf-8");
     }
 
-    @Override
-    public String format(LoggingEvent event) {
+    public byte[] headerBytes() {
+        return new byte[0];
+    }
+
+    public byte[] footerBytes() {
+        return new byte[0];
+    }
+
+    public byte[] encode(final ILoggingEvent event) {
         buf.setLength(0);
 
         buf.append('{');
@@ -161,12 +140,7 @@ public class JsonLayout extends Layout {
             hasPrevField = true;
         }
 
-        if (renderedFields.contains(Field.LOCATION)) {
-            if (hasPrevField) {
-                buf.append(',');
-            }
-            hasPrevField = appendLocation(buf, event);
-        }
+        //No support for Field.LOCATION
 
         if (renderedFields.contains(Field.LOGGER)) {
             if (hasPrevField) {
@@ -180,7 +154,7 @@ public class JsonLayout extends Layout {
             if (hasPrevField) {
                 buf.append(',');
             }
-            appendField(buf, Field.MESSAGE.val, event.getRenderedMessage());
+            appendField(buf, Field.MESSAGE.val, event.getFormattedMessage());
             hasPrevField = true;
         }
 
@@ -191,16 +165,7 @@ public class JsonLayout extends Layout {
             hasPrevField = appendMDC(buf, event);
         }
 
-        if (renderedFields.contains(Field.NDC)) {
-            String ndc = event.getNDC();
-            if (ndc != null && !ndc.isEmpty()) {
-                if (hasPrevField) {
-                    buf.append(',');
-                }
-                appendField(buf, Field.NDC.val, event.getNDC());
-                hasPrevField = true;
-            }
-        }
+        //No support for Field.NDC
 
         if (renderedFields.contains(Field.HOST)) {
             if (hasPrevField) {
@@ -210,12 +175,7 @@ public class JsonLayout extends Layout {
             hasPrevField = true;
         }
 
-        if (renderedFields.contains(Field.PATH)) {
-            if (hasPrevField) {
-                buf.append(',');
-            }
-            hasPrevField = appendSourcePath(buf, event);
-        }
+        //No support for Field.PATH
 
         if (renderedFields.contains(Field.TAGS)) {
             if (hasPrevField) {
@@ -250,11 +210,15 @@ public class JsonLayout extends Layout {
 
         buf.append("}\n");
 
-        return buf.toString();
+        try {
+            return buf.toString().getBytes("utf-8");
+        } catch (UnsupportedEncodingException e) {
+            return "{error:\"failed to encode answer to UTF-8\"}\n".getBytes();
+        }
     }
 
     @SuppressWarnings("UnusedParameters")
-    private boolean appendFields(StringBuilder buf, LoggingEvent event) {
+    private boolean appendFields(StringBuilder buf, ILoggingEvent event) {
         if (fields.isEmpty()) {
             return false;
         }
@@ -270,70 +234,8 @@ public class JsonLayout extends Layout {
         return true;
     }
 
-    private boolean appendSourcePath(StringBuilder buf, LoggingEvent event) {
-        if (!pathResolved) {
-            @SuppressWarnings("unchecked")
-            Appender appender = findLayoutAppender(event.getLogger());
-            if (appender instanceof FileAppender) {
-                FileAppender fileAppender = (FileAppender) appender;
-                path = getAppenderPath(fileAppender);
-            }
-            pathResolved = true;
-        }
-        if (path != null) {
-            appendField(buf, Field.PATH.val, path);
-            return true;
-        }
-        return false;
-    }
-
-    private Appender findLayoutAppender(Category logger) {
-        for(Category parent = logger; parent != null; parent = parent.getParent()) {
-            @SuppressWarnings("unchecked")
-            Appender appender = findLayoutAppender(parent.getAllAppenders());
-            if(appender != null) {
-                return appender;
-            }
-        }
-        return null;
-    }
-
-    @SuppressWarnings("unchecked")
-    private Appender findLayoutAppender(Enumeration<? extends Appender> appenders) {
-        if(appenders == null) {
-            return null;
-        }
-
-        while (appenders.hasMoreElements()) {
-            Appender appender = appenders.nextElement();
-            // get the first appender with this layout instance and ignore others;
-            // actually a single instance of this class is not intended to be used with multiple threads.
-            if (appender.getLayout() == this) {
-                return appender;
-            }
-            if (appender instanceof AppenderAttachable) {
-                AppenderAttachable appenderContainer = (AppenderAttachable) appender;
-                return findLayoutAppender(appenderContainer.getAllAppenders());
-            }
-        }
-        return null;
-    }
-
-    private String getAppenderPath(FileAppender fileAppender) {
-        String path = null;
-        try {
-            String fileName = fileAppender.getFile();
-            if (fileName != null && !fileName.isEmpty()) {
-                path = new File(fileName).getCanonicalPath();
-            }
-        } catch (IOException e) {
-            LogLog.error("Unable to retrieve appender's file name", e);
-        }
-        return path;
-    }
-
     @SuppressWarnings("UnusedParameters")
-    private boolean appendTags(StringBuilder builder, LoggingEvent event) {
+    private boolean appendTags(StringBuilder builder, ILoggingEvent event) {
         if (tags == null || tags.length == 0) {
             return false;
         }
@@ -351,8 +253,8 @@ public class JsonLayout extends Layout {
         return true;
     }
 
-    private boolean appendMDC(StringBuilder buf, LoggingEvent event) {
-        Map<?, ?> entries = event.getProperties();
+    private boolean appendMDC(StringBuilder buf, ILoggingEvent event) {
+        Map<?, ?> entries = event.getMDCPropertyMap();
         if (entries.isEmpty()) {
             return false;
         }
@@ -372,56 +274,8 @@ public class JsonLayout extends Layout {
         return true;
     }
 
-    private boolean appendLocation(StringBuilder buf, LoggingEvent event) {
-        LocationInfo locationInfo = event.getLocationInformation();
-        if (locationInfo == null) {
-            return false;
-        }
-
-        boolean hasPrevField = false;
-
-        appendQuotedName(buf, Field.LOCATION.val);
-        buf.append(":{");
-
-        String className = locationInfo.getClassName();
-        if (className != null) {
-            appendField(buf, LocationField.CLASS.val, className);
-            hasPrevField = true;
-        }
-
-        String fileName = locationInfo.getFileName();
-        if (fileName != null) {
-            if (hasPrevField) {
-                buf.append(',');
-            }
-            appendField(buf, LocationField.FILE.val, fileName);
-            hasPrevField = true;
-        }
-
-        String methodName = locationInfo.getMethodName();
-        if (methodName != null) {
-            if (hasPrevField) {
-                buf.append(',');
-            }
-            appendField(buf, LocationField.METHOD.val, methodName);
-            hasPrevField = true;
-        }
-
-        String lineNum = locationInfo.getLineNumber();
-        if (lineNum != null) {
-            if (hasPrevField) {
-                buf.append(',');
-            }
-            appendField(buf, LocationField.LINE.val, lineNum);
-        }
-
-        buf.append('}');
-
-        return true;
-    }
-
-    private boolean appendException(StringBuilder buf, LoggingEvent event) {
-        ThrowableInformation throwableInfo = event.getThrowableInformation();
+    private boolean appendException(StringBuilder buf, ILoggingEvent event) {
+        IThrowableProxy throwableInfo = event.getThrowableProxy();
         if (throwableInfo == null) {
             return false;
         }
@@ -431,26 +285,22 @@ public class JsonLayout extends Layout {
 
         boolean hasPrevField = false;
 
-        @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
-        Throwable throwable = throwableInfo.getThrowable();
-        if (throwable != null) {
-            String message = throwable.getMessage();
-            if (message != null) {
-                appendField(buf, ExceptionField.MESSAGE.val, message);
-                hasPrevField = true;
-            }
-
-            String className = throwable.getClass().getCanonicalName();
-            if (className != null) {
-                if (hasPrevField) {
-                    buf.append(',');
-                }
-                appendField(buf, ExceptionField.CLASS.val, className);
-                hasPrevField = true;
-            }
+        String message = throwableInfo.getMessage();
+        if (message != null) {
+            appendField(buf, ExceptionField.MESSAGE.val, message);
+            hasPrevField = true;
         }
 
-        String[] stackTrace = throwableInfo.getThrowableStrRep();
+        String className = throwableInfo.getClassName();
+        if (className != null) {
+            if (hasPrevField) {
+                buf.append(',');
+            }
+            appendField(buf, ExceptionField.CLASS.val, className);
+            hasPrevField = true;
+        }
+
+        StackTraceElementProxy[] stackTrace = throwableInfo.getStackTraceElementProxyArray();
         if (stackTrace != null && stackTrace.length != 0) {
             if (hasPrevField) {
                 buf.append(',');
@@ -458,13 +308,14 @@ public class JsonLayout extends Layout {
             appendQuotedName(buf, ExceptionField.STACKTRACE.val);
             buf.append(":\"");
             for (int i = 0, len = stackTrace.length; i < len; i++) {
-                appendValue(buf, stackTrace[i]);
+                appendValue(buf, stackTrace[i].getSTEAsString());
                 if (i != len - 1) {
                     appendChar(buf, '\n');
                 }
             }
             buf.append('\"');
         }
+        //TODO: suppressed exceptions
 
         buf.append('}');
 
@@ -472,11 +323,7 @@ public class JsonLayout extends Layout {
     }
 
     @Override
-    public boolean ignoresThrowable() {
-        return ignoresThrowable;
-    }
-
-    public void activateOptions() {
+    public void start() {
         if (includedFields != null) {
             String[] included = SEP_PATTERN.split(includedFields);
             for (String val : included) {
@@ -504,15 +351,9 @@ public class JsonLayout extends Layout {
                 hostName = InetAddress.getLocalHost().getHostName();
             } catch (UnknownHostException e) {
                 hostName = "localhost";
-                LogLog.error("Unable to determine name of the localhost", e);
             }
         }
-        ignoresThrowable = !renderedFields.contains(Field.EXCEPTION);
-    }
-
-    @Override
-    public String getContentType() {
-        return "application/json";
+        super.start();
     }
 
     private void appendQuotedName(StringBuilder out, Object name) {

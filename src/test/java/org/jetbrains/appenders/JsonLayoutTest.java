@@ -13,30 +13,24 @@
  */
 package org.jetbrains.appenders;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.ConsoleAppender;
 import com.jayway.jsonassert.JsonAsserter;
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.FileAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.MDC;
-import org.apache.log4j.NDC;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
-import java.io.File;
-import java.io.StringWriter;
+import java.io.ByteArrayOutputStream;
 import java.net.InetAddress;
 
 import static com.jayway.jsonassert.JsonAssert.with;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasItems;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
-import static org.hamcrest.Matchers.startsWith;
-import static org.mockito.Mockito.doNothing;
+import static org.hamcrest.Matchers.*;
 import static org.mockito.Mockito.spy;
 
 public class JsonLayoutTest {
@@ -44,43 +38,53 @@ public class JsonLayoutTest {
     @Rule
     public TestName testName = new TestName();
 
-    private StringWriter consoleWriter;
+    private ByteArrayOutputStream consoleWriter;
     private JsonLayout consoleLayout;
     private Logger logger;
 
     @Before
     public void setUp() throws Exception {
-        consoleWriter = new StringWriter();
+        consoleWriter = new ByteArrayOutputStream();
 
         consoleLayout = new JsonLayout();
-        consoleLayout.activateOptions();
 
-        ConsoleAppender consoleAppender = spy(new ConsoleAppender());
-        doNothing().when(consoleAppender).activateOptions();
-        consoleAppender.setWriter(consoleWriter);
-        consoleAppender.setLayout(consoleLayout);
-        consoleAppender.activateOptions();
+        ConsoleAppender<ILoggingEvent> consoleAppender = spy(new ConsoleAppender<ILoggingEvent>());
 
-        logger = Logger.getRootLogger();
+        // assume SLF4J is bound to logback in the current environment
+        final LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+        context.reset();
+
+        ch.qos.logback.classic.Logger logger = context.getLogger("test");
+        consoleAppender.setEncoder(consoleLayout);
+
         logger.addAppender(consoleAppender);
         logger.setLevel(Level.INFO);
+
+        consoleAppender.setContext(context);
+        consoleAppender.start();
+
+        consoleLayout.setContext(context);
+        consoleLayout.start();
+
+        context.start();
+        consoleAppender.setOutputStream(consoleWriter);
+
+        this.logger = LoggerFactory.getLogger("test");
     }
 
     @Test
     public void testDefaultFields() throws Exception {
-        NDC.push("ndc_1");
-        NDC.push("ndc_2");
-        NDC.push("ndc_3");
-
         MDC.put("mdc_key_1", "1");
-        MDC.put("mdc_key_2", 2L);
-        MDC.put("mdc_key_3", 3);
-        MDC.put("mdc_key_4", 4.1);
+        MDC.put("mdc_key_2", "2");
+        MDC.put("mdc_key_3", "3");
+        MDC.put("mdc_key_4", "4.1");
 
         @SuppressWarnings("ThrowableInstanceNeverThrown")
         RuntimeException exception = new RuntimeException("Hello World Exception");
 
         logger.error("Hello World", exception);
+
+        System.out.println(consoleWriter.toString());
 
         JsonAsserter asserter = with(consoleWriter.toString())
             .assertThat("$.exception.message", equalTo(exception.getMessage()))
@@ -99,7 +103,6 @@ public class JsonLayoutTest {
             .assertThat("$.mdc.mdc_key_3", equalTo("3"))
             .assertThat("$.mdc.mdc_key_4", equalTo("4.1"))
             .assertThat("$.message", equalTo("Hello World"))
-            .assertThat("$.ndc", equalTo("ndc_1 ndc_2 ndc_3"))
             .assertThat("$.path", nullValue())
             .assertThat("$.host", equalTo(InetAddress.getLocalHost().getHostName()))
             .assertThat("$.tags", nullValue())
@@ -110,16 +113,13 @@ public class JsonLayoutTest {
 
     @Test
     public void testIncludeFields() throws Exception {
-        consoleLayout.setIncludedFields("location");
-        consoleLayout.activateOptions();
+        consoleLayout.setIncludedFields("logger");
+        consoleLayout.start();
 
         logger.info("Hello World");
 
         with(consoleWriter.toString())
-            .assertThat("$.location.class", equalTo(getClass().getName()))
-            .assertThat("$.location.file", equalTo(getClass().getSimpleName() + ".java"))
-            .assertThat("$.location.method", equalTo(testName.getMethodName()))
-            .assertThat("$.location.line", notNullValue());
+            .assertThat("$.message", equalTo("Hello World"));
     }
 
     @Test
@@ -129,7 +129,7 @@ public class JsonLayoutTest {
             message.append((char)c);
         }
 
-        consoleLayout.activateOptions();
+        consoleLayout.start();
         logger.info(message.toString());
 
         with(consoleWriter.toString())
@@ -138,12 +138,8 @@ public class JsonLayoutTest {
 
     @Test
     public void testExcludeFields() throws Exception {
-        consoleLayout.setExcludedFields("ndc,mdc,exception");
-        consoleLayout.activateOptions();
-
-        NDC.push("ndc_1");
-        NDC.push("ndc_2");
-        NDC.push("ndc_3");
+        consoleLayout.setExcludedFields("mdc,exception");
+        consoleLayout.start();
 
         MDC.put("mdc_key_1", "mdc_val_1");
         MDC.put("mdc_key_2", "mdc_val_2");
@@ -171,7 +167,7 @@ public class JsonLayoutTest {
     @Test
     public void testAddTags() throws Exception {
         consoleLayout.setTags("json,logstash");
-        consoleLayout.activateOptions();
+        consoleLayout.start();
 
         logger.info("Hello World");
 
@@ -181,7 +177,7 @@ public class JsonLayoutTest {
     @Test
     public void testAddFields() throws Exception {
         consoleLayout.setFields("type:log4j,shipper:logstash");
-        consoleLayout.activateOptions();
+        consoleLayout.start();
 
         logger.info("Hello World");
 
@@ -189,94 +185,6 @@ public class JsonLayoutTest {
             .assertThat("$.type", equalTo("log4j"))
             .assertThat("$.shipper", equalTo("logstash"));
     }
-
-    @Test
-    public void testSourcePath() throws Exception {
-        logger.info("Hello World!");
-        with(consoleWriter.toString()).assertThat("$.path", nullValue());
-
-        // for the file appender there must be log file path in the json
-        StringWriter fileWriter = new StringWriter();
-
-        JsonLayout fileLayout = new JsonLayout();
-        fileLayout.activateOptions();
-
-        FileAppender fileAppender = spy(new FileAppender());
-        doNothing().when(fileAppender).activateOptions();
-        fileAppender.setWriter(fileWriter);
-        fileAppender.setFile("/tmp/logger.log");
-        fileAppender.setLayout(fileLayout);
-        fileAppender.activateOptions();
-
-        logger.addAppender(fileAppender);
-
-        logger.info("Hello World!");
-        with(fileWriter.toString())
-            .assertThat("$.path", equalTo(new File(fileAppender.getFile()).getCanonicalPath()));
-    }
-
-    @Test
-    public void testParentLoggerSourcePath() throws Exception {
-        logger.info("Hello World!");
-        with(consoleWriter.toString()).assertThat("$.path", nullValue());
-
-        // for the file appender there must be log file path in the json
-        StringWriter fileWriter = new StringWriter();
-
-        JsonLayout fileLayout = new JsonLayout();
-        fileLayout.activateOptions();
-
-        FileAppender fileAppender = spy(new FileAppender());
-        doNothing().when(fileAppender).activateOptions();
-        fileAppender.setWriter(fileWriter);
-        fileAppender.setFile("/tmp/logger.log");
-        fileAppender.setLayout(fileLayout);
-        fileAppender.activateOptions();
-
-        logger.addAppender(fileAppender);
-
-        Logger testLogger = Logger.getLogger(getClass());
-        testLogger.setLevel(Level.INFO);
-
-        testLogger.info("Hello World!");
-        with(fileWriter.toString())
-            .assertThat("$.path", equalTo(new File(fileAppender.getFile()).getCanonicalPath()));
-    }
-
-    @Test
-    public void testMultipleParentLoggersSourcePath() throws Exception {
-        logger.removeAllAppenders();
-
-        // for the file appender there must be log file path in the json
-        StringWriter fileWriter = new StringWriter();
-
-        JsonLayout fileLayout = new JsonLayout();
-        fileLayout.activateOptions();
-
-        FileAppender fileAppender = spy(new FileAppender());
-        doNothing().when(fileAppender).activateOptions();
-        fileAppender.setWriter(fileWriter);
-        fileAppender.setFile("/tmp/logger.log");
-        fileAppender.setLayout(fileLayout);
-        fileAppender.activateOptions();
-
-        logger.addAppender(fileAppender);
-
-        Logger testLogger = Logger.getLogger(getClass());
-        testLogger.setLevel(Level.INFO);
-        testLogger.setAdditivity(true);
-
-        Logger packageLogger = Logger.getLogger(getClass().getPackage().getName());
-        packageLogger.setLevel(Level.INFO);
-        packageLogger.setAdditivity(true);
-
-        testLogger.info("Hello World");
-        System.out.println(fileWriter.toString());
-
-        with(fileWriter.toString())
-            .assertThat("$.path", equalTo(new File(fileAppender.getFile()).getCanonicalPath()));
-    }
-
 
     @Test
     public void testEscape() throws Exception {
