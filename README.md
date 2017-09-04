@@ -1,4 +1,4 @@
-## Logstash Log4J Layout
+## Logstash Logback Layout
 
 1. [What is it?](#what-is-it)
 2. [How to use?](#how-to-use)
@@ -6,7 +6,7 @@
 4. [License](#license)
 
 ### What is it?
-Log4J Layout to format logs according to the Logstash json format.
+Logback Layout to format logs according to the Logstash json format.
 
 This layout does not have any external dependencies on 3rd party libraries, so it can be easily used within different
 environments, for example OSGi runtimes.
@@ -57,15 +57,6 @@ If there is an exception, the logged message will look like the following one:
         "@version": "1"
     }
 
-By default `location` is not logged as it's pretty expensive to resolve, but if you need to log it use `includedFields`
-property to specify the required fields to be included into the message
-
-    log4j.rootLogger = INFO, stdout
-
-    log4j.appender.stdout=org.apache.log4j.ConsoleAppender
-    log4j.appender.stdout.layout=org.jetbrains.appenders.JsonLayout
-    log4j.appender.stdout.layout.includedFields=location
-
 After that the location will be available in the message
 
     {
@@ -84,27 +75,18 @@ After that the location will be available in the message
         "@version": "1"
     }
 
+#### Exclude and include fields
+
 Included and excluded fields can be combined together
 
-    log4j.rootLogger = INFO, stdout
-
-    log4j.appender.stdout=org.apache.log4j.ConsoleAppender
-    log4j.appender.stdout.layout=org.jetbrains.appenders.JsonLayout
-    log4j.appender.stdout.layout.includedFields=location
-    log4j.appender.stdout.layout.excludedFields=exception,mdc,ndc
-
+TBD: add config example   
 
 #### Adding tags and fields
 
 Additional fields and tags which must be included into the logged message can be specified with `tags` and `fields`
 configuration properties of the layout:
 
-    log4j.rootLogger = INFO, stdout
-
-    log4j.appender.stdout=org.apache.log4j.ConsoleAppender
-    log4j.appender.stdout.layout=org.jetbrains.appenders.JsonLayout
-    log4j.appender.stdout.layout.tags=spring,logstash
-    log4j.appender.stdout.layout.fields=type:log4j,format:json
+TBD: add config example   
 
 The message will look like the following one:
 
@@ -121,35 +103,9 @@ The message will look like the following one:
         "@version": "1"
     }
 
-#### Logging source path
-
-If the layout is configured with an instance of `FileAppender` or any of its subclasses then the path of the file, the
-log messages are sent to, will also be included into the message:
-
-    log4j.appender.out=org.apache.log4j.RollingFileAppender
-    log4j.appender.out.layout=org.jetbrains.appenders.JsonLayout
-    log4j.appender.out.file="/tmp/logger.log"
-    log4j.appender.out.append=true
-    log4j.appender.out.maxFileSize=100MB
-    log4j.appender.out.maxBackupIndex=10
-
-With such a configuration the message will contain additional `path` field
-
-    {
-        "level": "ERROR",
-        "logger": "root",
-        "message": "Hello World!",
-        "host": "vm",
-        "path": "/tmp/logger.log",
-        "@timestamp": "2013-11-17T10:21:41.863Z",
-        "thread": "main",
-        "@version": "1"
-    }
-
 ### Notes
 
-The `LogStashJsonLayout` is not thread safe and a single instance of this layout must not be used with multiple
-appenders. Each appender must be configured with its own layout instance.
+In the branch we re-used logic behind log4j appender to implement similar zero-dependency logback appender. 
 
 ### License
 
