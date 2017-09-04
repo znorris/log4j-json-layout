@@ -50,7 +50,6 @@ public class JsonLayout extends EncoderBase<ILoggingEvent> {
     private enum Field {
         EXCEPTION("exception"),
         LEVEL("level"),
-        LOCATION("location"),
         LOGGER("logger"),
         MESSAGE("message"),
         MDC("mdc"),
@@ -98,7 +97,6 @@ public class JsonLayout extends EncoderBase<ILoggingEvent> {
         fields = new HashMap<String, String>();
 
         renderedFields = EnumSet.allOf(Field.class);
-        renderedFields.remove(Field.LOCATION);
 
         dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
         dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
