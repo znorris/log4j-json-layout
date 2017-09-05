@@ -18,9 +18,9 @@ import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.classic.spi.StackTraceElementProxy;
 import ch.qos.logback.core.encoder.EncoderBase;
 
-import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.charset.Charset;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -107,7 +107,7 @@ public class JsonLayout extends EncoderBase<ILoggingEvent> {
     }
 
     public byte[] encode(final ILoggingEvent event) {
-        final StringBuilder buf = new StringBuilder(32 * 1024);
+        final StringBuilder buf = new StringBuilder();
         buf.append('{');
 
         boolean hasPrevField = false;
@@ -197,11 +197,7 @@ public class JsonLayout extends EncoderBase<ILoggingEvent> {
 
         buf.append("}\n");
 
-        try {
-            return buf.toString().getBytes("utf-8");
-        } catch (UnsupportedEncodingException e) {
-            return "{error:\"failed to encode answer to UTF-8\"}\n".getBytes();
-        }
+        return buf.toByteArray();
     }
 
     @SuppressWarnings("UnusedParameters")
@@ -461,5 +457,46 @@ public class JsonLayout extends EncoderBase<ILoggingEvent> {
 
     public void setHostName(String hostName) {
         this.hostName = hostName;
+    }
+
+    private static class StringBuilder {
+        private static final Charset UTF8 = Charset.forName("utf-8");
+        private static final int INITIAL_SZ = 32 * 1024;
+        private static final byte[][] CHAR_TO_BYTES = charToBytes();
+
+        private byte[] buf = new byte[INITIAL_SZ];
+        private int offset = 0;
+
+        public StringBuilder append(char c) {
+            return append(CHAR_TO_BYTES[c]);
+        }
+
+        public StringBuilder append(String text) {
+            return append(text.getBytes(UTF8));
+        }
+
+        private StringBuilder append(byte[] app) {
+            if (offset + app.length > buf.length) {
+                int factor = 1 + app.length / INITIAL_SZ;
+                buf = Arrays.copyOf(buf, buf.length + factor * INITIAL_SZ);
+            }
+
+            System.arraycopy(app, 0, buf, offset, app.length);
+            offset += app.length;
+
+            return this;
+        }
+
+        public byte[] toByteArray() {
+            return Arrays.copyOf(buf, offset);
+        }
+
+        private static byte[][] charToBytes() {
+            final byte[][] r = new byte[Character.MAX_VALUE + 1][];
+            for(int i = Character.MIN_VALUE; i <= Character.MAX_VALUE; i++) {
+                r[i] = String.valueOf((char)i).getBytes(UTF8);
+            }
+            return r;
+        }
     }
 }
