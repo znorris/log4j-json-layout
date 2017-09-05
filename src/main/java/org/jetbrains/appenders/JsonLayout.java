@@ -37,7 +37,10 @@ public class JsonLayout extends EncoderBase<ILoggingEvent> {
     private enum ExceptionField {
         CLASS("class"),
         MESSAGE("message"),
-        STACKTRACE("stacktrace");
+        STACKTRACE("stacktrace"),
+        CAUSE("cause"),
+        SUPPRESSED("suppressed"),
+        ;
 
         private final String val;
 
@@ -82,7 +85,7 @@ public class JsonLayout extends EncoderBase<ILoggingEvent> {
     private String includedFields;
     private String excludedFields;
 
-    private final Map<String, String> fields = new HashMap<String, String>();
+    private final Map<String, String> fields = new HashMap<>();
     private final Set<Field> renderedFields = EnumSet.allOf(Field.class);
     private final ThreadLocal<DateFormat> dateFormat = new ThreadLocal<DateFormat>(){
         @Override
@@ -265,7 +268,13 @@ public class JsonLayout extends EncoderBase<ILoggingEvent> {
         }
 
         appendQuotedName(buf, Field.EXCEPTION.val);
-        buf.append(":{");
+        buf.append(':');
+        appendException(buf, throwableInfo);
+        return true;
+    }
+
+    private void appendException(StringBuilder buf, IThrowableProxy throwableInfo) {
+        buf.append("{");
 
         boolean hasPrevField = false;
 
@@ -299,11 +308,41 @@ public class JsonLayout extends EncoderBase<ILoggingEvent> {
             }
             buf.append('\"');
         }
-        //TODO: suppressed exceptions
+
+        IThrowableProxy cause = throwableInfo.getCause();
+        if (cause != null) {
+            if (hasPrevField) {
+                buf.append(',');
+            }
+            appendQuotedName(buf, ExceptionField.CAUSE.val);
+            buf.append(':');
+            appendException(buf, cause);
+            hasPrevField = true;
+        }
+
+        IThrowableProxy[] suppressed = throwableInfo.getSuppressed();
+        if (suppressed != null && suppressed.length > 0) {
+            if (hasPrevField) {
+                buf.append(',');
+            }
+
+            boolean isFirst = true;
+            appendQuotedName(buf, ExceptionField.SUPPRESSED.val);
+            buf.append(":[");
+            for (IThrowableProxy info : suppressed) {
+                if (info == null) continue;
+
+                if (isFirst) {
+                    isFirst = false;
+                } else {
+                    buf.append(',');
+                }
+                appendException(buf, info);
+            }
+            buf.append("]");
+        }
 
         buf.append('}');
-
-        return true;
     }
 
     @Override

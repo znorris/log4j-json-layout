@@ -18,6 +18,7 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.ConsoleAppender;
 import com.jayway.jsonassert.JsonAsserter;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -27,7 +28,6 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import java.io.ByteArrayOutputStream;
-import java.net.InetAddress;
 
 import static com.jayway.jsonassert.JsonAssert.with;
 import static org.hamcrest.Matchers.*;
@@ -103,12 +103,112 @@ public class JsonLayoutTest {
             .assertThat("$.mdc.mdc_key_3", equalTo("3"))
             .assertThat("$.mdc.mdc_key_4", equalTo("4.1"))
             .assertThat("$.message", equalTo("Hello World"))
-            .assertThat("$.path", nullValue())
-            .assertThat("$.host", equalTo(InetAddress.getLocalHost().getHostName()))
-            .assertThat("$.tags", nullValue())
             .assertThat("$.thread", equalTo(Thread.currentThread().getName()))
             .assertThat("$.@timestamp", notNullValue())
             .assertThat("$.@version", equalTo("1"));
+    }
+
+    private void throwNested() throws Exception {
+        try {
+            throwException2();
+        } catch (Exception e) {
+            throw new Exception("E1", e);
+        }
+    }
+
+    private void throwException2() throws Exception {
+        throw new Exception("E2");
+    }
+
+    @Test
+    public void testNestedExceptions() throws Exception {
+        Exception exception = null;
+        try {
+            throwNested();
+        } catch (Exception e) {
+            exception = e;
+            logger.error("Hello World", e);
+        }
+        Assert.assertNotNull(exception);
+        System.out.println(consoleWriter.toString());
+
+        JsonAsserter asserter = with(consoleWriter.toString())
+            .assertThat("$.exception.message", equalTo(exception.getMessage()))
+            .assertThat("$.exception.class", equalTo(exception.getClass().getName()))
+            .assertThat("$.exception.cause.class", equalTo(exception.getCause().getClass().getName()))
+            .assertThat("$.exception.cause.message", equalTo(exception.getCause().getMessage()))
+            .assertThat("$.exception.cause.cause", nullValue())
+                ;
+
+        for (StackTraceElement e : exception.getStackTrace()) {
+            asserter
+                .assertThat("$.exception.stacktrace", containsString(e.getClassName()))
+                .assertThat("$.exception.stacktrace", containsString(e.getMethodName()));
+        }
+
+        //TODO: check nested exceptions
+
+        asserter
+            .assertThat("$.level", equalTo("ERROR"))
+            .assertThat("$.location", nullValue())
+            .assertThat("$.logger", equalTo(logger.getName()))
+            .assertThat("$.message", equalTo("Hello World"))
+                ;
+    }
+
+    private void suppressedException() throws Exception {
+        try (AutoCloseable c = new AutoCloseable() {
+            @Override
+            public void close() throws Exception {
+                throwException2();
+            }
+        }) {
+            try (AutoCloseable c2 = new AutoCloseable() {
+                @Override
+                public void close() throws Exception {
+                    throwNested();
+                }
+            }) {
+                throw new RuntimeException("r2d2");
+            }
+        }
+    }
+
+    @Test
+    public void testSuppressedExceptions() throws Exception {
+        Exception exception = null;
+        try {
+            suppressedException();
+        } catch (Exception e) {
+            exception = e;
+            logger.error("Hello World", e);
+        }
+        Assert.assertNotNull(exception);
+        System.out.println(consoleWriter.toString());
+
+        JsonAsserter asserter = with(consoleWriter.toString())
+                .assertThat("$.exception.message", equalTo(exception.getMessage()))
+                .assertThat("$.exception.class", equalTo(exception.getClass().getName()))
+                .assertThat("$.exception.cause", nullValue())
+                .assertThat("$.exception.suppressed[0].message", equalTo("E1"))
+                .assertThat("$.exception.suppressed[0].cause.message", equalTo("E2"))
+                .assertThat("$.exception.suppressed[1].message", equalTo("E2"))
+                ;
+
+        for (StackTraceElement e : exception.getStackTrace()) {
+            asserter
+                    .assertThat("$.exception.stacktrace", containsString(e.getClassName()))
+                    .assertThat("$.exception.stacktrace", containsString(e.getMethodName()));
+        }
+
+        //TODO: check nested exceptions
+
+        asserter
+                .assertThat("$.level", equalTo("ERROR"))
+                .assertThat("$.location", nullValue())
+                .assertThat("$.logger", equalTo(logger.getName()))
+                .assertThat("$.message", equalTo("Hello World"))
+        ;
     }
 
     @Test
@@ -157,7 +257,6 @@ public class JsonLayoutTest {
             .assertThat("$.message", equalTo("Hello World"))
             .assertThat("$.ndc", nullValue())
             .assertThat("$.path", nullValue())
-            .assertThat("$.host", equalTo(InetAddress.getLocalHost().getHostName()))
             .assertThat("$.tags", nullValue())
             .assertThat("$.thread", equalTo(Thread.currentThread().getName()))
             .assertThat("$.@timestamp", notNullValue())
