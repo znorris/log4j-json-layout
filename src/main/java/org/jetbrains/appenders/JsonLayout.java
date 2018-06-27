@@ -75,7 +75,7 @@ public class JsonLayout extends Layout {
 
     private enum Field {
         EXCEPTION("exception"),
-        LEVEL("level"),
+        LEVEL("severity"),
         LOCATION("location"),
         LOGGER("logger"),
         MESSAGE("message"),
