@@ -547,9 +547,9 @@ public class JsonLayout extends Layout {
             case '\\':
                 out.append("\\\\");
                 break;
-            case '/':
-                out.append("\\/");
-                break;
+//            case '/':
+//                out.append("\\/");
+//                break;
             case '\b':
                 out.append("\\b");
                 break;
